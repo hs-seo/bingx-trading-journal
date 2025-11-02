@@ -851,6 +851,235 @@
             font-size: 14px;
             color: var(--color-text-secondary);
         }
+
+        /* RR 계산기 스타일 */
+        .rr-calculator {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .rr-section {
+            background: var(--color-background);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .rr-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: 16px;
+            letter-spacing: -0.01em;
+        }
+
+        .rr-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .rr-section-header h3 {
+            margin-bottom: 0;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        .rr-position-select select {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            background: white;
+            color: var(--color-text-primary);
+        }
+
+        .rr-side-selector {
+            display: flex;
+            gap: 16px;
+        }
+
+        .rr-side-selector label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .rr-side-selector input[type="radio"] {
+            display: none;
+        }
+
+        .side-badge {
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .side-badge.long {
+            background: rgba(181, 231, 211, 0.2);
+            color: var(--color-text-primary);
+        }
+
+        .side-badge.short {
+            background: rgba(255, 181, 186, 0.2);
+            color: var(--color-text-primary);
+        }
+
+        .rr-side-selector input[type="radio"]:checked + .side-badge.long {
+            background: var(--color-success);
+            border-color: var(--color-success);
+        }
+
+        .rr-side-selector input[type="radio"]:checked + .side-badge.short {
+            background: var(--color-error);
+            border-color: var(--color-error);
+        }
+
+        .rr-entries-table {
+            overflow-x: auto;
+        }
+
+        .rr-entry-value {
+            color: var(--color-text-secondary);
+            font-size: 14px;
+            text-align: right;
+            padding-right: 12px;
+        }
+
+        .rr-targets {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .rr-results {
+            background: var(--color-surface);
+        }
+
+        .rr-summary {
+            display: grid;
+            gap: 12px;
+        }
+
+        .rr-summary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: white;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+        }
+
+        .rr-label {
+            font-size: 14px;
+            color: var(--color-text-secondary);
+            font-weight: 500;
+        }
+
+        .rr-value {
+            font-size: 16px;
+            color: var(--color-text-primary);
+            font-weight: 600;
+        }
+
+        .rr-pnl {
+            display: grid;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .rr-pnl-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-radius: 6px;
+            border: 1px solid;
+        }
+
+        .rr-pnl-item.risk {
+            background: rgba(255, 181, 186, 0.1);
+            border-color: var(--color-error);
+        }
+
+        .rr-pnl-item.reward {
+            background: rgba(181, 231, 211, 0.1);
+            border-color: var(--color-success);
+        }
+
+        .rr-pnl-label {
+            font-size: 14px;
+            color: var(--color-text-primary);
+            font-weight: 500;
+        }
+
+        .rr-pnl-value {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .rr-pnl-item.risk .rr-pnl-value {
+            color: #EF4444;
+        }
+
+        .rr-pnl-item.reward .rr-pnl-value {
+            color: #10B981;
+        }
+
+        .rr-ratio-display {
+            padding: 24px;
+            background: white;
+            border: 2px solid var(--color-primary);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .rr-ratio-label {
+            display: block;
+            font-size: 14px;
+            color: var(--color-text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .rr-ratio-value {
+            display: block;
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--color-primary);
+            letter-spacing: -0.02em;
+        }
+
+        .rr-simulation {
+            background: var(--color-surface);
+            padding: 16px;
+            border-radius: 6px;
+            border: 1px solid var(--color-border);
+        }
+
+        .rr-sim-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .rr-targets,
+            .rr-sim-inputs {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1042,6 +1271,7 @@
             <div class="tabs">
                 <button class="tab active" onclick="switchTab('activity', this)">Recent Activity</button>
                 <button class="tab" onclick="switchTab('trades', this)">전체 거래</button>
+                <button class="tab" onclick="switchTab('rrcalc', this)">RR 계산기</button>
                 <button class="tab" onclick="switchTab('pinescript', this)">Pine Script</button>
             </div>
             <button id="copyPineScriptBtn" class="btn btn-success tab-action-btn" onclick="copyPineScript()">Pine Script 복사</button>
@@ -1055,6 +1285,137 @@
         <!-- 거래 내역 탭 -->
         <div id="tradesTab" class="tab-content">
             <div id="tradesContainer" class="trades-container"></div>
+        </div>
+
+        <!-- RR 계산기 탭 -->
+        <div id="rrcalcTab" class="tab-content">
+            <div class="rr-calculator">
+                <!-- 포지션 불러오기 -->
+                <div class="rr-section">
+                    <div class="rr-section-header">
+                        <h3>🔄 현재 포지션</h3>
+                        <button class="btn btn-secondary btn-small" onclick="loadCurrentPositions()">새로고침</button>
+                    </div>
+                    <div class="rr-position-select">
+                        <select id="rrPositionSelect" onchange="loadPositionToCalculator()">
+                            <option value="">포지션을 선택하거나 수동 입력하세요</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 거래 방향 -->
+                <div class="rr-section">
+                    <h3>📊 거래 설정</h3>
+                    <div class="rr-side-selector">
+                        <label>
+                            <input type="radio" name="rrSide" value="LONG" checked onchange="updateRRCalculation()">
+                            <span class="side-badge long">LONG</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="rrSide" value="SHORT" onchange="updateRRCalculation()">
+                            <span class="side-badge short">SHORT</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 진입 내역 -->
+                <div class="rr-section">
+                    <div class="rr-section-header">
+                        <h3>📍 진입 내역</h3>
+                        <button class="btn btn-success btn-small" onclick="addEntryRow()">+ 진입 추가</button>
+                    </div>
+                    <div class="rr-entries-table">
+                        <table class="settings-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 35%;">진입가 (USDT)</th>
+                                    <th style="width: 35%;">수량 (BTC)</th>
+                                    <th style="width: 20%;">금액 ($)</th>
+                                    <th style="width: 10%;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="rrEntriesBody">
+                                <tr>
+                                    <td><input type="number" class="rr-entry-price" placeholder="100000" step="0.01" oninput="updateRRCalculation()"></td>
+                                    <td><input type="number" class="rr-entry-qty" placeholder="0.1" step="0.0001" oninput="updateRRCalculation()"></td>
+                                    <td class="rr-entry-value">-</td>
+                                    <td><button class="delete-btn" onclick="removeEntryRow(this)" style="visibility: hidden;">삭제</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 목표 설정 -->
+                <div class="rr-section">
+                    <h3>🎯 목표 설정</h3>
+                    <div class="rr-targets">
+                        <div class="input-group">
+                            <label for="rrStopLoss">손절가 (SL)</label>
+                            <input type="number" id="rrStopLoss" placeholder="98000" step="0.01" oninput="updateRRCalculation()">
+                        </div>
+                        <div class="input-group">
+                            <label for="rrTakeProfit">익절가 (TP)</label>
+                            <input type="number" id="rrTakeProfit" placeholder="106000" step="0.01" oninput="updateRRCalculation()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 결과 표시 -->
+                <div class="rr-section rr-results">
+                    <h3>📊 포지션 요약</h3>
+                    <div class="rr-summary">
+                        <div class="rr-summary-item">
+                            <span class="rr-label">평균 진입가:</span>
+                            <span class="rr-value" id="rrAvgEntry">-</span>
+                        </div>
+                        <div class="rr-summary-item">
+                            <span class="rr-label">총 수량:</span>
+                            <span class="rr-value" id="rrTotalQty">-</span>
+                        </div>
+                        <div class="rr-summary-item">
+                            <span class="rr-label">총 금액:</span>
+                            <span class="rr-value" id="rrTotalValue">-</span>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top: 24px;">💰 손익 계산</h3>
+                    <div class="rr-pnl">
+                        <div class="rr-pnl-item risk">
+                            <span class="rr-pnl-label">Risk (손실):</span>
+                            <span class="rr-pnl-value" id="rrRisk">-</span>
+                        </div>
+                        <div class="rr-pnl-item reward">
+                            <span class="rr-pnl-label">Reward (수익):</span>
+                            <span class="rr-pnl-value" id="rrReward">-</span>
+                        </div>
+                        <div class="rr-ratio-display">
+                            <span class="rr-ratio-label">현재 RR:</span>
+                            <span class="rr-ratio-value" id="rrRatio">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 시뮬레이션 -->
+                <div class="rr-section">
+                    <h3>📈 시나리오 시뮬레이션</h3>
+                    <div class="rr-simulation">
+                        <div class="rr-sim-inputs">
+                            <div class="input-group">
+                                <label for="rrSimPrice">추가 진입가</label>
+                                <input type="number" id="rrSimPrice" placeholder="99000" step="0.01">
+                            </div>
+                            <div class="input-group">
+                                <label for="rrSimQty">추가 수량</label>
+                                <input type="number" id="rrSimQty" placeholder="0.1" step="0.0001">
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="runSimulation()" style="width: 100%; margin-top: 12px;">시뮬레이션 실행</button>
+                        <div class="rr-sim-result" id="rrSimResult" style="display: none; margin-top: 16px; padding: 16px; background: var(--color-surface); border-radius: 6px; border: 1px solid var(--color-border);">
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Pine Script 탭 -->

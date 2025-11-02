@@ -341,6 +341,14 @@ function switchTab(tabName, clickedElement) {
     if (tabName === 'pinescript') {
         generatePineScript();
     }
+
+    // RR 계산기 탭 클릭 시 초기화
+    if (tabName === 'rrcalc') {
+        const tbody = document.getElementById('rrEntriesBody');
+        if (tbody && tbody.children.length === 0) {
+            addEntryRow();
+        }
+    }
 }
 
 // ========== BingX API 호출 ==========
@@ -2463,4 +2471,423 @@ async function debugRecentTrades() {
         console.error('❌ 디버깅 실패:', error);
         showStatus(`❌ 디버깅 실패: ${error.message}`, 'error');
     }
+}
+
+// ========== RR 계산기 ==========
+
+// RR Calculator 클래스
+class RRCalculator {
+    constructor() {
+        this.entries = [];
+        this.stopLoss = null;
+        this.takeProfit = null;
+        this.side = 'LONG';
+    }
+
+    addEntry(price, quantity) {
+        this.entries.push({
+            price: parseFloat(price),
+            quantity: parseFloat(quantity)
+        });
+    }
+
+    removeEntry(index) {
+        this.entries.splice(index, 1);
+    }
+
+    clearEntries() {
+        this.entries = [];
+    }
+
+    setSide(side) {
+        this.side = side;
+    }
+
+    setStopLoss(price) {
+        this.stopLoss = parseFloat(price);
+    }
+
+    setTakeProfit(price) {
+        this.takeProfit = parseFloat(price);
+    }
+
+    getAverageEntry() {
+        if (this.entries.length === 0) return 0;
+
+        let totalValue = 0;
+        let totalQty = 0;
+
+        this.entries.forEach(entry => {
+            totalValue += entry.price * entry.quantity;
+            totalQty += entry.quantity;
+        });
+
+        return totalQty > 0 ? totalValue / totalQty : 0;
+    }
+
+    getTotalQuantity() {
+        return this.entries.reduce((sum, e) => sum + e.quantity, 0);
+    }
+
+    getTotalValue() {
+        return this.entries.reduce((sum, e) => sum + (e.price * e.quantity), 0);
+    }
+
+    getRisk() {
+        if (!this.stopLoss || this.entries.length === 0) return 0;
+
+        const avgEntry = this.getAverageEntry();
+        const totalQty = this.getTotalQuantity();
+
+        if (this.side === 'LONG') {
+            return (avgEntry - this.stopLoss) * totalQty;
+        } else {
+            return (this.stopLoss - avgEntry) * totalQty;
+        }
+    }
+
+    getReward() {
+        if (!this.takeProfit || this.entries.length === 0) return 0;
+
+        const avgEntry = this.getAverageEntry();
+        const totalQty = this.getTotalQuantity();
+
+        if (this.side === 'LONG') {
+            return (this.takeProfit - avgEntry) * totalQty;
+        } else {
+            return (avgEntry - this.takeProfit) * totalQty;
+        }
+    }
+
+    getRRRatio() {
+        const risk = this.getRisk();
+        if (risk === 0) return 0;
+
+        const reward = this.getReward();
+        return reward / risk;
+    }
+
+    simulateNewEntry(newPrice, newQuantity) {
+        const tempCalc = new RRCalculator();
+        tempCalc.entries = [...this.entries];
+        tempCalc.side = this.side;
+        tempCalc.stopLoss = this.stopLoss;
+        tempCalc.takeProfit = this.takeProfit;
+        tempCalc.addEntry(newPrice, newQuantity);
+
+        return {
+            avgEntry: tempCalc.getAverageEntry(),
+            totalQty: tempCalc.getTotalQuantity(),
+            totalValue: tempCalc.getTotalValue(),
+            risk: tempCalc.getRisk(),
+            reward: tempCalc.getReward(),
+            rrRatio: tempCalc.getRRRatio()
+        };
+    }
+}
+
+// 전역 RR Calculator 인스턴스
+let rrCalc = new RRCalculator();
+
+// 진입 행 추가
+function addEntryRow() {
+    const tbody = document.getElementById('rrEntriesBody');
+    const row = document.createElement('tr');
+
+    row.innerHTML = `
+        <td><input type="number" class="rr-entry-price" placeholder="100000" step="0.01" oninput="updateRRCalculation()"></td>
+        <td><input type="number" class="rr-entry-qty" placeholder="0.1" step="0.0001" oninput="updateRRCalculation()"></td>
+        <td class="rr-entry-value">-</td>
+        <td><button class="delete-btn" onclick="removeEntryRow(this)">삭제</button></td>
+    `;
+
+    tbody.appendChild(row);
+}
+
+// 진입 행 삭제
+function removeEntryRow(btn) {
+    const row = btn.closest('tr');
+    const tbody = document.getElementById('rrEntriesBody');
+
+    // 최소 1개는 유지
+    if (tbody.children.length > 1) {
+        row.remove();
+        updateRRCalculation();
+    } else {
+        showStatus('⚠️ 최소 1개의 진입은 필요합니다', 'error');
+    }
+}
+
+// RR 계산 업데이트
+function updateRRCalculation() {
+    // 진입 데이터 수집
+    rrCalc.clearEntries();
+
+    const rows = document.querySelectorAll('#rrEntriesBody tr');
+    rows.forEach((row, index) => {
+        const priceInput = row.querySelector('.rr-entry-price');
+        const qtyInput = row.querySelector('.rr-entry-qty');
+        const valueCell = row.querySelector('.rr-entry-value');
+        const deleteBtn = row.querySelector('.delete-btn');
+
+        const price = parseFloat(priceInput.value) || 0;
+        const qty = parseFloat(qtyInput.value) || 0;
+
+        if (price > 0 && qty > 0) {
+            rrCalc.addEntry(price, qty);
+            const value = price * qty;
+            valueCell.textContent = '$' + value.toFixed(2);
+        } else {
+            valueCell.textContent = '-';
+        }
+
+        // 첫 번째 행은 삭제 버튼 숨김
+        if (index === 0 && rows.length === 1) {
+            deleteBtn.style.visibility = 'hidden';
+        } else {
+            deleteBtn.style.visibility = 'visible';
+        }
+    });
+
+    // 거래 방향
+    const sideRadios = document.getElementsByName('rrSide');
+    for (const radio of sideRadios) {
+        if (radio.checked) {
+            rrCalc.setSide(radio.value);
+            break;
+        }
+    }
+
+    // 손절/익절
+    const stopLoss = parseFloat(document.getElementById('rrStopLoss').value) || null;
+    const takeProfit = parseFloat(document.getElementById('rrTakeProfit').value) || null;
+
+    if (stopLoss) rrCalc.setStopLoss(stopLoss);
+    if (takeProfit) rrCalc.setTakeProfit(takeProfit);
+
+    // 결과 표시
+    displayRRResults();
+}
+
+// 결과 표시
+function displayRRResults() {
+    const avgEntry = rrCalc.getAverageEntry();
+    const totalQty = rrCalc.getTotalQuantity();
+    const totalValue = rrCalc.getTotalValue();
+    const risk = rrCalc.getRisk();
+    const reward = rrCalc.getReward();
+    const rrRatio = rrCalc.getRRRatio();
+
+    // 포지션 요약
+    document.getElementById('rrAvgEntry').textContent = avgEntry > 0
+        ? avgEntry.toFixed(2) + ' USDT'
+        : '-';
+
+    document.getElementById('rrTotalQty').textContent = totalQty > 0
+        ? totalQty.toFixed(4) + ' BTC'
+        : '-';
+
+    document.getElementById('rrTotalValue').textContent = totalValue > 0
+        ? '$' + totalValue.toFixed(2)
+        : '-';
+
+    // 손익
+    const riskEl = document.getElementById('rrRisk');
+    const rewardEl = document.getElementById('rrReward');
+
+    if (risk > 0) {
+        const riskPercent = ((risk / totalValue) * 100).toFixed(2);
+        riskEl.textContent = `-$${risk.toFixed(2)} (-${riskPercent}%)`;
+    } else {
+        riskEl.textContent = '-';
+    }
+
+    if (reward > 0) {
+        const rewardPercent = ((reward / totalValue) * 100).toFixed(2);
+        rewardEl.textContent = `+$${reward.toFixed(2)} (+${rewardPercent}%)`;
+    } else {
+        rewardEl.textContent = '-';
+    }
+
+    // RR 비율
+    const ratioEl = document.getElementById('rrRatio');
+    if (rrRatio > 0) {
+        ratioEl.textContent = rrRatio.toFixed(2) + ':1';
+
+        // 색상 변경
+        if (rrRatio >= 3) {
+            ratioEl.style.color = '#10B981'; // 초록
+        } else if (rrRatio >= 2) {
+            ratioEl.style.color = 'var(--color-primary)'; // 파랑
+        } else if (rrRatio >= 1) {
+            ratioEl.style.color = '#F59E0B'; // 주황
+        } else {
+            ratioEl.style.color = '#EF4444'; // 빨강
+        }
+    } else {
+        ratioEl.textContent = '-';
+        ratioEl.style.color = 'var(--color-primary)';
+    }
+}
+
+// 시뮬레이션 실행
+function runSimulation() {
+    const simPrice = parseFloat(document.getElementById('rrSimPrice').value);
+    const simQty = parseFloat(document.getElementById('rrSimQty').value);
+
+    if (!simPrice || !simQty) {
+        showStatus('⚠️ 시뮬레이션 가격과 수량을 입력하세요', 'error');
+        return;
+    }
+
+    if (rrCalc.entries.length === 0) {
+        showStatus('⚠️ 먼저 진입 내역을 입력하세요', 'error');
+        return;
+    }
+
+    const result = rrCalc.simulateNewEntry(simPrice, simQty);
+
+    // 결과 표시
+    const resultDiv = document.getElementById('rrSimResult');
+    resultDiv.style.display = 'block';
+
+    let rrColor = 'var(--color-primary)';
+    if (result.rrRatio >= 3) rrColor = '#10B981';
+    else if (result.rrRatio >= 2) rrColor = 'var(--color-primary)';
+    else if (result.rrRatio >= 1) rrColor = '#F59E0B';
+    else rrColor = '#EF4444';
+
+    const riskPercent = ((result.risk / result.totalValue) * 100).toFixed(2);
+    const rewardPercent = ((result.reward / result.totalValue) * 100).toFixed(2);
+
+    const avgEntryStr = result.avgEntry.toFixed(2);
+    const totalQtyStr = result.totalQty.toFixed(4);
+    const totalValueStr = result.totalValue.toFixed(2);
+    const riskStr = result.risk.toFixed(2);
+    const rewardStr = result.reward.toFixed(2);
+    const rrRatioStr = result.rrRatio.toFixed(2);
+
+    resultDiv.innerHTML = `
+        <div style="font-size: 14px; color: var(--color-text-primary); margin-bottom: 12px;">
+            <strong>추가 진입 후 예상:</strong>
+        </div>
+        <div style="display: grid; gap: 8px; font-size: 13px;">
+            <div style="display: flex; justify-content: space-between;">
+                <span>평균 진입가:</span>
+                <strong>${avgEntryStr} USDT</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>총 수량:</span>
+                <strong>${totalQtyStr} BTC</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>총 금액:</span>
+                <strong>$${totalValueStr}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; color: #EF4444;">
+                <span>Risk:</span>
+                <strong>-$${riskStr} (-${riskPercent}%)</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; color: #10B981;">
+                <span>Reward:</span>
+                <strong>+$${rewardStr} (+${rewardPercent}%)</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--color-border);">
+                <span>예상 RR:</span>
+                <strong style="color: ${rrColor}; font-size: 18px;">${rrRatioStr}:1</strong>
+            </div>
+        </div>
+    `;
+
+    showStatus('✅ 시뮬레이션 완료', 'success');
+}
+
+// 현재 포지션 불러오기
+async function loadCurrentPositions() {
+    try {
+        showStatus('🔄 현재 포지션 조회 중...', 'info');
+
+        const apiKey = document.getElementById('apiKey').value;
+        const secretKey = document.getElementById('secretKey').value;
+
+        if (!apiKey || !secretKey) {
+            showStatus('⚠️ API 키를 먼저 설정하세요', 'error');
+            return;
+        }
+
+        // Perpetual Futures 포지션 조회
+        const timestamp = Date.now();
+        const queryString = `timestamp=${timestamp}`;
+        const signature = generateSignature(queryString, secretKey);
+
+        const params = {
+            timestamp: timestamp,
+            signature: signature
+        };
+
+        const positions = await makeApiRequest('/openApi/swap/v2/user/positions', params);
+
+        const select = document.getElementById('rrPositionSelect');
+        select.innerHTML = '<option value="">포지션을 선택하거나 수동 입력하세요</option>';
+
+        if (Array.isArray(positions) && positions.length > 0) {
+            positions.forEach((pos, index) => {
+                const unrealizedProfit = parseFloat(pos.unrealizedProfit) || 0;
+                const profitSign = unrealizedProfit >= 0 ? '+' : '';
+
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${pos.symbol} ${pos.positionSide} | ${parseFloat(pos.positionAmt).toFixed(4)} @ ${parseFloat(pos.avgPrice).toFixed(2)} | ${profitSign}${unrealizedProfit.toFixed(2)}$`;
+                option.dataset.position = JSON.stringify(pos);
+
+                select.appendChild(option);
+            });
+
+            showStatus(`✅ ${positions.length}개 포지션 로드됨`, 'success');
+        } else {
+            showStatus('⚠️ 현재 보유 포지션이 없습니다', 'info');
+        }
+
+    } catch (error) {
+        showStatus(`❌ 포지션 조회 실패: ${error.message}`, 'error');
+        console.error('Error loading positions:', error);
+    }
+}
+
+// 포지션을 계산기에 로드
+function loadPositionToCalculator() {
+    const select = document.getElementById('rrPositionSelect');
+    const selectedOption = select.options[select.selectedIndex];
+
+    if (!selectedOption.dataset.position) return;
+
+    const position = JSON.parse(selectedOption.dataset.position);
+
+    // 기존 진입 내역 초기화
+    const tbody = document.getElementById('rrEntriesBody');
+    tbody.innerHTML = '';
+
+    // 포지션 데이터로 첫 행 추가
+    const row = document.createElement('tr');
+    const avgPriceStr = parseFloat(position.avgPrice).toFixed(2);
+    const posAmtStr = Math.abs(parseFloat(position.positionAmt)).toFixed(4);
+
+    row.innerHTML = `
+        <td><input type="number" class="rr-entry-price" value="${avgPriceStr}" step="0.01" oninput="updateRRCalculation()"></td>
+        <td><input type="number" class="rr-entry-qty" value="${posAmtStr}" step="0.0001" oninput="updateRRCalculation()"></td>
+        <td class="rr-entry-value">-</td>
+        <td><button class="delete-btn" onclick="removeEntryRow(this)" style="visibility: hidden;">삭제</button></td>
+    `;
+    tbody.appendChild(row);
+
+    // 거래 방향 설정
+    const sideRadios = document.getElementsByName('rrSide');
+    for (const radio of sideRadios) {
+        radio.checked = (radio.value === position.positionSide);
+    }
+
+    // 계산 업데이트
+    updateRRCalculation();
+
+    showStatus(`✅ ${position.symbol} ${position.positionSide} 포지션 로드됨`, 'success');
 }
