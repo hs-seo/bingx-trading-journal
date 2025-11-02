@@ -2940,7 +2940,7 @@ async function loadCurrentPositions() {
                 const unrealizedProfit = parseFloat(pos.unrealizedProfit || pos.profit || 0);
                 const profitSign = unrealizedProfit >= 0 ? '+' : '';
                 const posAmt = parseFloat(pos.positionAmt || pos.volume || pos.position || 0);
-                const avgPrice = parseFloat(pos.avgPrice || pos.avgOpenPrice || 0);
+                const avgPrice = parseFloat(pos.avgPrice || pos.avgOpenPrice || pos.entryPrice || 0);
                 const marketType = pos._marketType;
                 const marketTag = marketType === 'Perpetual' ? '[P]' : '[S]';
                 const side = pos.positionSide || pos.side || 'UNKNOWN';
@@ -2991,7 +2991,7 @@ function loadPositionToCalculator() {
     tbody.innerHTML = '';
 
     // Perpetual vs Standard 필드명 차이 처리
-    const avgPrice = parseFloat(position.avgPrice || position.avgOpenPrice || 0);
+    const avgPrice = parseFloat(position.avgPrice || position.avgOpenPrice || position.entryPrice || 0);
     const posAmt = Math.abs(parseFloat(position.positionAmt || position.volume || 0));
     const side = position.positionSide || position.side || 'LONG';
     const marketType = position._marketType || 'Perpetual';
@@ -3085,7 +3085,7 @@ function loadSelectedPositions() {
 
         // 각 포지션을 진입 행으로 추가
         positions.forEach((position, index) => {
-            const avgPrice = parseFloat(position.avgPrice || position.avgOpenPrice || 0);
+            const avgPrice = parseFloat(position.avgPrice || position.avgOpenPrice || position.entryPrice || 0);
             const posAmt = Math.abs(parseFloat(position.positionAmt || position.volume || 0));
 
             console.log(`  행 ${index} 추가: 가격=${avgPrice}, 수량=${posAmt}`);
