@@ -2596,6 +2596,22 @@ let rrCalc = new RRCalculator();
 // 전역 포지션 데이터 저장소 (HTML data 속성 이스케이프 문제 방지)
 let currentPositions = [];
 
+// 현재 선택된 심볼의 통화 단위 (기본값: BTC)
+let currentSymbolCurrency = 'BTC';
+
+// 심볼 통화 단위 업데이트
+function updateSymbolCurrency(symbol) {
+    // 심볼에서 통화 부분 추출 (예: "BTC-USDT" → "BTC", "ETH-USDT" → "ETH")
+    const currency = symbol.split('-')[0] || 'BTC';
+    currentSymbolCurrency = currency;
+
+    // 테이블 헤더 업데이트
+    const headerCell = document.querySelector('#rrEntriesBody').closest('table').querySelector('thead th:nth-child(2)');
+    if (headerCell) {
+        headerCell.textContent = `수량 (${currency})`;
+    }
+}
+
 // 진입 행 추가
 function addEntryRow() {
     const tbody = document.getElementById('rrEntriesBody');
@@ -2691,7 +2707,7 @@ function displayRRResults() {
         : '-';
 
     document.getElementById('rrTotalQty').textContent = totalQty > 0
-        ? totalQty.toFixed(4) + ' BTC'
+        ? totalQty.toFixed(4) + ' ' + currentSymbolCurrency
         : '-';
 
     document.getElementById('rrTotalValue').textContent = totalValue > 0
@@ -2785,7 +2801,7 @@ function runSimulation() {
             </div>
             <div style="display: flex; justify-content: space-between;">
                 <span>총 수량:</span>
-                <strong>${totalQtyStr} BTC</strong>
+                <strong>${totalQtyStr} ${currentSymbolCurrency}</strong>
             </div>
             <div style="display: flex; justify-content: space-between;">
                 <span>총 금액:</span>
@@ -2991,6 +3007,9 @@ function loadPositionToCalculator() {
     const position = currentPositions[selectedIndex];
     if (!position) return;
 
+    // 심볼 통화 단위 업데이트
+    updateSymbolCurrency(position.symbol);
+
     // 기존 진입 내역 초기화
     const tbody = document.getElementById('rrEntriesBody');
     tbody.innerHTML = '';
@@ -3060,6 +3079,9 @@ function loadSelectedPositions() {
             showStatus('⚠️ 포지션 데이터를 불러올 수 없습니다', 'error');
             return;
         }
+
+        // 첫 번째 포지션의 심볼로 통화 단위 업데이트
+        updateSymbolCurrency(positions[0].symbol);
 
         // 방향 검증 (모두 같은 방향이어야 함)
         const firstSide = positions[0].positionSide || positions[0].side || 'LONG';
