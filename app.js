@@ -948,13 +948,15 @@ function displayRecentActivity(positions) {
     const positionsByDate = {};
     positions.forEach(position => {
         const date = new Date(position.entryTime);
-        const year = date.getFullYear();
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
+        const datePart = date.toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
         const weekday = date.toLocaleDateString('ko-KR', {
             weekday: 'short'
         });
-        const dateKey = `${year}.${month}.${day}(${weekday})`;
+        const dateKey = `${datePart}(${weekday})`;
 
         if (!positionsByDate[dateKey]) {
             positionsByDate[dateKey] = [];
