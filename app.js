@@ -2887,10 +2887,11 @@ async function loadCurrentPositions() {
                                 return;
                             }
 
-                            // 심볼 일치 확인 (API가 모든 심볼을 반환할 수 있음)
-                            const posSymbol = pos.symbol || symbol;
-                            if (posSymbol !== symbol) {
-                                console.log(`  ⏭️ 심볼 불일치 스킵: ${posSymbol} !== ${symbol}`);
+                            // 심볼 일치 확인 (하이픈 제거하여 비교, API 응답은 BTCUSDT, 요청은 BTC-USDT)
+                            const posSymbol = (pos.symbol || symbol).replace(/-/g, '');
+                            const normalizedSymbol = symbol.replace(/-/g, '');
+                            if (posSymbol !== normalizedSymbol) {
+                                console.log(`  ⏭️ 심볼 불일치 스킵: ${posSymbol} !== ${normalizedSymbol}`);
                                 return;
                             }
 
