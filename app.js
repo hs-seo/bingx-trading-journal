@@ -315,9 +315,9 @@ function switchTab(tabName, clickedElement) {
         // 프로그래밍 방식으로 호출될 때
         const tabs = document.querySelectorAll('.tab');
         tabs.forEach(tab => {
-            if (tab.textContent.includes(tabName === 'activity' ? 'Recent Activity' :
-                                          tabName === 'trades' ? '전체 거래' :
-                                          tabName === 'pinescript' ? 'Pine Script' : '')) {
+            if (tab.textContent.includes(tabName === 'activity' ? 'Recent' :
+                                          tabName === 'trades' ? '전체거래' :
+                                          tabName === 'pinescript' ? 'PineScript' : '')) {
                 tab.classList.add('active');
             }
         });
