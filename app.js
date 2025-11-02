@@ -2823,11 +2823,17 @@ async function loadCurrentPositions() {
         // 1. Perpetual Futures 포지션 조회
         try {
             const perpetualPositions = await makeApiRequest('/openApi/swap/v2/user/positions', {});
+            console.log('🔍 Perpetual Futures 응답:', perpetualPositions);
 
             if (Array.isArray(perpetualPositions) && perpetualPositions.length > 0) {
                 perpetualPositions.forEach(pos => {
-                    pos._marketType = 'Perpetual';
-                    allPositions.push(pos);
+                    // 포지션이 실제로 열려있는지 확인 (수량이 0이 아닌 경우만)
+                    const posAmt = parseFloat(pos.positionAmt || 0);
+                    if (posAmt !== 0) {
+                        pos._marketType = 'Perpetual';
+                        allPositions.push(pos);
+                        console.log('  ✅ Perpetual 포지션 추가:', pos.symbol, pos.positionSide, posAmt);
+                    }
                 });
             }
         } catch (error) {
@@ -2835,51 +2841,100 @@ async function loadCurrentPositions() {
         }
 
         // 2. Standard Futures 포지션 조회 시도
+        console.log('🔍 Standard Futures 조회 시작...');
         try {
             const standardSymbols = ['BTC-USDT', 'ETH-USDT', 'SOL-USDT', 'BNB-USDT', 'XRP-USDT'];
 
             for (const symbol of standardSymbols) {
                 try {
-                    const standardPositions = await makeApiRequest('/openApi/contract/v1/allPosition', { symbol });
+                    // Standard Futures 포지션 조회 (여러 엔드포인트 시도)
+                    let standardPositions = null;
+
+                    // 시도 1: /openApi/contract/v1/allPosition
+                    try {
+                        standardPositions = await makeApiRequest('/openApi/contract/v1/allPosition', { symbol });
+                        console.log(`  📊 ${symbol} allPosition 응답:`, standardPositions);
+                    } catch (err1) {
+                        console.log(`  ⚠️ ${symbol} allPosition 실패:`, err1.message);
+
+                        // 시도 2: /openApi/contract/v1/positions
+                        try {
+                            standardPositions = await makeApiRequest('/openApi/contract/v1/positions', { symbol });
+                            console.log(`  📊 ${symbol} positions 응답:`, standardPositions);
+                        } catch (err2) {
+                            console.log(`  ⚠️ ${symbol} positions 실패:`, err2.message);
+                        }
+                    }
 
                     if (Array.isArray(standardPositions) && standardPositions.length > 0) {
                         standardPositions.forEach(pos => {
                             // 포지션이 열려있는지 확인 (수량이 0이 아닌 경우)
-                            const positionAmt = parseFloat(pos.positionAmt || pos.volume || 0);
+                            const positionAmt = parseFloat(pos.positionAmt || pos.volume || pos.position || 0);
                             if (positionAmt !== 0) {
                                 pos._marketType = 'Standard';
+                                pos.symbol = symbol; // 심볼 명시적으로 추가
                                 allPositions.push(pos);
+                                console.log(`  ✅ Standard 포지션 추가:`, symbol, pos.side || pos.positionSide, positionAmt);
                             }
                         });
+                    } else if (standardPositions && !Array.isArray(standardPositions)) {
+                        // 단일 객체로 응답이 올 경우
+                        console.log(`  📊 ${symbol} 단일 객체 응답:`, standardPositions);
+                        const positionAmt = parseFloat(standardPositions.positionAmt || standardPositions.volume || standardPositions.position || 0);
+                        if (positionAmt !== 0) {
+                            standardPositions._marketType = 'Standard';
+                            standardPositions.symbol = symbol;
+                            allPositions.push(standardPositions);
+                            console.log(`  ✅ Standard 포지션 추가 (단일):`, symbol, standardPositions.side || standardPositions.positionSide, positionAmt);
+                        }
                     }
                 } catch (err) {
-                    // 개별 심볼 조회 실패는 무시 (해당 심볼에 포지션이 없을 수 있음)
+                    console.log(`  ⚠️ ${symbol} 전체 조회 실패:`, err.message);
                 }
             }
         } catch (error) {
-            console.error('Standard Futures 조회 실패:', error);
+            console.error('❌ Standard Futures 조회 전체 실패:', error);
         }
 
         // 포지션 표시
+        console.log(`📋 총 ${allPositions.length}개 포지션 발견`);
+
+        const checkboxesContainer = document.getElementById('rrPositionCheckboxes');
+        checkboxesContainer.innerHTML = '';
+
         if (allPositions.length > 0) {
             allPositions.forEach((pos, index) => {
                 const unrealizedProfit = parseFloat(pos.unrealizedProfit || pos.profit || 0);
                 const profitSign = unrealizedProfit >= 0 ? '+' : '';
-                const posAmt = parseFloat(pos.positionAmt || pos.volume || 0);
+                const posAmt = parseFloat(pos.positionAmt || pos.volume || pos.position || 0);
                 const avgPrice = parseFloat(pos.avgPrice || pos.avgOpenPrice || 0);
                 const marketType = pos._marketType;
                 const marketTag = marketType === 'Perpetual' ? '[P]' : '[S]';
+                const side = pos.positionSide || pos.side || 'UNKNOWN';
+                const displayText = `${marketTag} ${pos.symbol} ${side} | ${Math.abs(posAmt).toFixed(4)} @ ${avgPrice.toFixed(2)} | ${profitSign}${unrealizedProfit.toFixed(2)}$`;
 
+                // 드롭다운 옵션 추가
                 const option = document.createElement('option');
                 option.value = index;
-                option.textContent = `${marketTag} ${pos.symbol} ${pos.positionSide || pos.side} | ${Math.abs(posAmt).toFixed(4)} @ ${avgPrice.toFixed(2)} | ${profitSign}${unrealizedProfit.toFixed(2)}$`;
+                option.textContent = displayText;
                 option.dataset.position = JSON.stringify(pos);
-
                 select.appendChild(option);
+
+                // 체크박스 항목 추가
+                const checkboxItem = document.createElement('div');
+                checkboxItem.className = 'rr-position-checkbox-item';
+                checkboxItem.innerHTML = `
+                    <input type="checkbox" id="rrPos${index}" value="${index}" data-position='${JSON.stringify(pos)}'>
+                    <label for="rrPos${index}">${displayText}</label>
+                `;
+                checkboxesContainer.appendChild(checkboxItem);
+
+                console.log(`  ✅ 포지션 추가: ${displayText}`);
             });
 
             showStatus(`✅ ${allPositions.length}개 포지션 로드됨 (Perpetual + Standard)`, 'success');
         } else {
+            checkboxesContainer.innerHTML = '<div style="padding: 16px; text-align: center; color: var(--color-text-tertiary);">포지션이 없습니다</div>';
             showStatus('⚠️ 현재 보유 포지션이 없습니다', 'info');
         }
 
@@ -2889,7 +2944,7 @@ async function loadCurrentPositions() {
     }
 }
 
-// 포지션을 계산기에 로드
+// 포지션을 계산기에 로드 (단일)
 function loadPositionToCalculator() {
     const select = document.getElementById('rrPositionSelect');
     const selectedOption = select.options[select.selectedIndex];
@@ -2932,4 +2987,63 @@ function loadPositionToCalculator() {
 
     const marketTag = marketType === 'Perpetual' ? '[P]' : '[S]';
     showStatus(`✅ ${marketTag} ${position.symbol} ${side} 포지션 로드됨`, 'success');
+}
+
+// 선택한 여러 포지션을 합산하여 로드
+function loadSelectedPositions() {
+    // 체크된 포지션 수집
+    const checkboxes = document.querySelectorAll('#rrPositionCheckboxes input[type="checkbox"]:checked');
+
+    if (checkboxes.length === 0) {
+        showStatus('⚠️ 최소 1개 이상의 포지션을 선택하세요', 'error');
+        return;
+    }
+
+    const positions = [];
+    checkboxes.forEach(checkbox => {
+        const posData = JSON.parse(checkbox.dataset.position);
+        positions.push(posData);
+    });
+
+    // 방향 검증 (모두 같은 방향이어야 함)
+    const firstSide = positions[0].positionSide || positions[0].side || 'LONG';
+    const allSameSide = positions.every(pos => {
+        const side = pos.positionSide || pos.side || 'LONG';
+        return side === firstSide;
+    });
+
+    if (!allSameSide) {
+        showStatus('⚠️ 서로 다른 방향(LONG/SHORT)의 포지션은 합산할 수 없습니다', 'error');
+        return;
+    }
+
+    // 기존 진입 내역 초기화
+    const tbody = document.getElementById('rrEntriesBody');
+    tbody.innerHTML = '';
+
+    // 각 포지션을 진입 행으로 추가
+    positions.forEach((position, index) => {
+        const avgPrice = parseFloat(position.avgPrice || position.avgOpenPrice || 0);
+        const posAmt = Math.abs(parseFloat(position.positionAmt || position.volume || 0));
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input type="number" class="rr-entry-price" value="${avgPrice.toFixed(2)}" step="0.01" oninput="updateRRCalculation()"></td>
+            <td><input type="number" class="rr-entry-qty" value="${posAmt.toFixed(4)}" step="0.0001" oninput="updateRRCalculation()"></td>
+            <td class="rr-entry-value">-</td>
+            <td><button class="delete-btn" onclick="removeEntryRow(this)">삭제</button></td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    // 거래 방향 설정
+    const sideRadios = document.getElementsByName('rrSide');
+    for (const radio of sideRadios) {
+        radio.checked = (radio.value === firstSide);
+    }
+
+    // 계산 업데이트
+    updateRRCalculation();
+
+    showStatus(`✅ ${positions.length}개 포지션 합산 완료`, 'success');
 }

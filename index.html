@@ -1074,6 +1074,45 @@
             gap: 16px;
         }
 
+        .rr-position-checkboxes {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            padding: 8px;
+            background: white;
+        }
+
+        .rr-position-checkbox-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s ease;
+        }
+
+        .rr-position-checkbox-item:last-child {
+            border-bottom: none;
+        }
+
+        .rr-position-checkbox-item:hover {
+            background: var(--color-surface);
+        }
+
+        .rr-position-checkbox-item input[type="checkbox"] {
+            width: auto;
+            cursor: pointer;
+        }
+
+        .rr-position-checkbox-item label {
+            flex: 1;
+            margin: 0;
+            cursor: pointer;
+            font-size: 13px;
+            user-select: none;
+        }
+
         @media (max-width: 768px) {
             .rr-targets,
             .rr-sim-inputs {
@@ -1296,10 +1335,24 @@
                         <h3>🔄 현재 포지션</h3>
                         <button class="btn btn-secondary btn-small" onclick="loadCurrentPositions()">새로고침</button>
                     </div>
-                    <div class="rr-position-select">
-                        <select id="rrPositionSelect" onchange="loadPositionToCalculator()">
-                            <option value="">포지션을 선택하거나 수동 입력하세요</option>
-                        </select>
+
+                    <!-- 단일 선택 (빠른 로드) -->
+                    <div style="margin-bottom: 16px;">
+                        <label style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 8px;">단일 포지션 빠른 로드:</label>
+                        <div class="rr-position-select">
+                            <select id="rrPositionSelect" onchange="loadPositionToCalculator()">
+                                <option value="">포지션을 선택하거나 수동 입력하세요</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 다중 선택 (합산) -->
+                    <div>
+                        <label style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 8px;">여러 포지션 선택 (평단 합산):</label>
+                        <div id="rrPositionCheckboxes" class="rr-position-checkboxes">
+                            <!-- 동적으로 체크박스 생성 -->
+                        </div>
+                        <button class="btn btn-primary btn-small" onclick="loadSelectedPositions()" style="margin-top: 12px; width: 100%;">선택한 포지션 합산하여 로드</button>
                     </div>
                 </div>
 
