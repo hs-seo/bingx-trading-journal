@@ -2815,26 +2815,70 @@ async function loadCurrentPositions() {
             return;
         }
 
-        // Perpetual Futures 포지션 조회 (makeApiRequest가 자체적으로 timestamp와 signature 생성)
-        const positions = await makeApiRequest('/openApi/swap/v2/user/positions', {});
-
         const select = document.getElementById('rrPositionSelect');
         select.innerHTML = '<option value="">포지션을 선택하거나 수동 입력하세요</option>';
 
-        if (Array.isArray(positions) && positions.length > 0) {
-            positions.forEach((pos, index) => {
-                const unrealizedProfit = parseFloat(pos.unrealizedProfit) || 0;
+        let allPositions = [];
+
+        // 1. Perpetual Futures 포지션 조회
+        try {
+            const perpetualPositions = await makeApiRequest('/openApi/swap/v2/user/positions', {});
+
+            if (Array.isArray(perpetualPositions) && perpetualPositions.length > 0) {
+                perpetualPositions.forEach(pos => {
+                    pos._marketType = 'Perpetual';
+                    allPositions.push(pos);
+                });
+            }
+        } catch (error) {
+            console.error('Perpetual Futures 조회 실패:', error);
+        }
+
+        // 2. Standard Futures 포지션 조회 시도
+        try {
+            const standardSymbols = ['BTC-USDT', 'ETH-USDT', 'SOL-USDT', 'BNB-USDT', 'XRP-USDT'];
+
+            for (const symbol of standardSymbols) {
+                try {
+                    const standardPositions = await makeApiRequest('/openApi/contract/v1/allPosition', { symbol });
+
+                    if (Array.isArray(standardPositions) && standardPositions.length > 0) {
+                        standardPositions.forEach(pos => {
+                            // 포지션이 열려있는지 확인 (수량이 0이 아닌 경우)
+                            const positionAmt = parseFloat(pos.positionAmt || pos.volume || 0);
+                            if (positionAmt !== 0) {
+                                pos._marketType = 'Standard';
+                                allPositions.push(pos);
+                            }
+                        });
+                    }
+                } catch (err) {
+                    // 개별 심볼 조회 실패는 무시 (해당 심볼에 포지션이 없을 수 있음)
+                }
+            }
+        } catch (error) {
+            console.error('Standard Futures 조회 실패:', error);
+        }
+
+        // 포지션 표시
+        if (allPositions.length > 0) {
+            allPositions.forEach((pos, index) => {
+                const unrealizedProfit = parseFloat(pos.unrealizedProfit || pos.profit || 0);
                 const profitSign = unrealizedProfit >= 0 ? '+' : '';
+                const posAmt = parseFloat(pos.positionAmt || pos.volume || 0);
+                const avgPrice = parseFloat(pos.avgPrice || pos.avgOpenPrice || 0);
+                const marketType = pos._marketType;
+                const marketTag = marketType === 'Perpetual' ? '[P]' : '[S]';
 
                 const option = document.createElement('option');
                 option.value = index;
-                option.textContent = `${pos.symbol} ${pos.positionSide} | ${parseFloat(pos.positionAmt).toFixed(4)} @ ${parseFloat(pos.avgPrice).toFixed(2)} | ${profitSign}${unrealizedProfit.toFixed(2)}$`;
+                option.textContent = `${marketTag} ${pos.symbol} ${pos.positionSide || pos.side} | ${Math.abs(posAmt).toFixed(4)} @ ${avgPrice.toFixed(2)} | ${profitSign}${unrealizedProfit.toFixed(2)}$`;
                 option.dataset.position = JSON.stringify(pos);
 
                 select.appendChild(option);
             });
 
-            showStatus(`✅ ${positions.length}개 포지션 로드됨`, 'success');
+            showStatus(`✅ ${allPositions.length}개 포지션 로드됨 (Perpetual + Standard)`, 'success');
         } else {
             showStatus('⚠️ 현재 보유 포지션이 없습니다', 'info');
         }
@@ -2858,10 +2902,16 @@ function loadPositionToCalculator() {
     const tbody = document.getElementById('rrEntriesBody');
     tbody.innerHTML = '';
 
+    // Perpetual vs Standard 필드명 차이 처리
+    const avgPrice = parseFloat(position.avgPrice || position.avgOpenPrice || 0);
+    const posAmt = Math.abs(parseFloat(position.positionAmt || position.volume || 0));
+    const side = position.positionSide || position.side || 'LONG';
+    const marketType = position._marketType || 'Perpetual';
+
     // 포지션 데이터로 첫 행 추가
     const row = document.createElement('tr');
-    const avgPriceStr = parseFloat(position.avgPrice).toFixed(2);
-    const posAmtStr = Math.abs(parseFloat(position.positionAmt)).toFixed(4);
+    const avgPriceStr = avgPrice.toFixed(2);
+    const posAmtStr = posAmt.toFixed(4);
 
     row.innerHTML = `
         <td><input type="number" class="rr-entry-price" value="${avgPriceStr}" step="0.01" oninput="updateRRCalculation()"></td>
@@ -2874,11 +2924,12 @@ function loadPositionToCalculator() {
     // 거래 방향 설정
     const sideRadios = document.getElementsByName('rrSide');
     for (const radio of sideRadios) {
-        radio.checked = (radio.value === position.positionSide);
+        radio.checked = (radio.value === side);
     }
 
     // 계산 업데이트
     updateRRCalculation();
 
-    showStatus(`✅ ${position.symbol} ${position.positionSide} 포지션 로드됨`, 'success');
+    const marketTag = marketType === 'Perpetual' ? '[P]' : '[S]';
+    showStatus(`✅ ${marketTag} ${position.symbol} ${side} 포지션 로드됨`, 'success');
 }
