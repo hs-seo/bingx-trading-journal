@@ -2815,17 +2815,8 @@ async function loadCurrentPositions() {
             return;
         }
 
-        // Perpetual Futures 포지션 조회
-        const timestamp = Date.now();
-        const queryString = `timestamp=${timestamp}`;
-        const signature = generateSignature(queryString, secretKey);
-
-        const params = {
-            timestamp: timestamp,
-            signature: signature
-        };
-
-        const positions = await makeApiRequest('/openApi/swap/v2/user/positions', params);
+        // Perpetual Futures 포지션 조회 (makeApiRequest가 자체적으로 timestamp와 signature 생성)
+        const positions = await makeApiRequest('/openApi/swap/v2/user/positions', {});
 
         const select = document.getElementById('rrPositionSelect');
         select.innerHTML = '<option value="">포지션을 선택하거나 수동 입력하세요</option>';
