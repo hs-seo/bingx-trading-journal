@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BingX API 연동 테스트</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 10px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        #result {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+        }
+        #result.show {
+            display: block;
+        }
+        .trade-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .trade-item.long {
+            border-left-color: #4caf50;
+        }
+        .trade-item.short {
+            border-left-color: #f44336;
+        }
+        .trade-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .symbol {
+            font-weight: 700;
+            font-size: 16px;
+        }
+        .side {
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .side.long {
+            background: #4caf50;
+            color: white;
+        }
+        .side.short {
+            background: #f44336;
+            color: white;
+        }
+        .trade-info {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .status {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+            display: block;
+        }
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            display: block;
+        }
+        .status.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            display: block;
+        }
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 BingX API 연동 테스트</h1>
+
+        <div id="status" class="status"></div>
+
+        <div class="input-group">
+            <label for="apiKey">API Key</label>
+            <input type="password" id="apiKey" placeholder="BingX API Key 입력">
+        </div>
+
+        <div class="input-group">
+            <label for="secretKey">Secret Key</label>
+            <input type="password" id="secretKey" placeholder="BingX Secret Key 입력">
+        </div>
+
+        <button class="btn" onclick="testConnection()">🔗 연결 테스트</button>
+        <button class="btn btn-secondary" onclick="getTradeHistory()">📊 거래 내역 가져오기</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script>
+        // Cloudflare Workers 프록시 URL
+        const PROXY_URL = 'https://sweet-poetry-7f5e.forbluegrayoeccd.workers.dev';
+        // ✅ 설정 완료!
+
+        // 상태 메시지 표시
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+
+        // HMAC SHA256 서명 생성
+        function generateSignature(queryString, secretKey) {
+            return CryptoJS.HmacSHA256(queryString, secretKey).toString();
+        }
+
+        // API 요청 함수 (프록시 서버 경유)
+        async function makeApiRequest(endpoint, params = {}) {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const secretKey = document.getElementById('secretKey').value.trim();
+
+            if (!apiKey || !secretKey) {
+                showStatus('⚠️ API Key와 Secret Key를 입력해주세요', 'error');
+                return null;
+            }
+
+            if (PROXY_URL === 'YOUR_CLOUDFLARE_WORKER_URL_HERE') {
+                showStatus('⚠️ PROXY_URL을 먼저 설정해주세요 (CLOUDFLARE_SETUP.md 참고)', 'error');
+                return null;
+            }
+
+            try {
+                // 타임스탬프 추가
+                params.timestamp = Date.now();
+
+                // 쿼리스트링 생성 (알파벳 순서로 정렬)
+                const sortedParams = Object.keys(params)
+                    .sort()
+                    .map(key => `${key}=${params[key]}`)
+                    .join('&');
+
+                // 서명 생성
+                const signature = generateSignature(sortedParams, secretKey);
+
+                // Cloudflare Worker를 통해 요청
+                const proxyUrl = `${PROXY_URL}?path=${encodeURIComponent(endpoint)}&query=${encodeURIComponent(sortedParams)}`;
+
+                const response = await fetch(proxyUrl, {
+                    method: 'GET',
+                    headers: {
+                        'X-BX-APIKEY': apiKey,
+                        'X-BX-SIGNATURE': signature
+                    }
+                });
+
+                const data = await response.json();
+                return data;
+
+            } catch (error) {
+                showStatus(`❌ API 요청 실패: ${error.message}`, 'error');
+                console.error('API Error:', error);
+                return null;
+            }
+        }
+
+        // 연결 테스트 (계정 정보 조회)
+        async function testConnection() {
+            showStatus('🔄 연결 테스트 중...', 'info');
+
+            // Perpetual Futures 계정 정보 조회
+            const data = await makeApiRequest('/openApi/swap/v2/user/balance', {});
+
+            if (data && data.code === 0) {
+                showStatus('✅ 연결 성공!', 'success');
+
+                const resultEl = document.getElementById('result');
+                resultEl.innerHTML = `
+                    <h3>📈 계정 정보</h3>
+                    <pre>${JSON.stringify(data.data, null, 2)}</pre>
+                `;
+                resultEl.classList.add('show');
+            } else {
+                showStatus(`❌ 연결 실패: ${data?.msg || '알 수 없는 오류'}`, 'error');
+                console.error('Response:', data);
+            }
+        }
+
+        // 거래 내역 가져오기
+        async function getTradeHistory() {
+            showStatus('🔄 거래 내역 조회 중...', 'info');
+
+            // Perpetual Futures 거래 내역 조회 (최근 30일)
+            const data = await makeApiRequest('/openApi/swap/v2/trade/allOrders', {
+                symbol: 'BTC-USDT',
+                limit: 100
+            });
+
+            if (data && data.code === 0) {
+                showStatus(`✅ 거래 내역 ${data.data.orders?.length || 0}건 조회 완료`, 'success');
+
+                const orders = data.data.orders || [];
+                displayTrades(orders);
+            } else {
+                showStatus(`❌ 조회 실패: ${data?.msg || '알 수 없는 오류'}`, 'error');
+                console.error('Response:', data);
+            }
+        }
+
+        // 거래 내역 표시
+        function displayTrades(orders) {
+            const resultEl = document.getElementById('result');
+
+            if (orders.length === 0) {
+                resultEl.innerHTML = '<p style="text-align:center; color:#999;">거래 내역이 없습니다.</p>';
+                resultEl.classList.add('show');
+                return;
+            }
+
+            let html = '<h3>📊 거래 내역</h3>';
+
+            orders.forEach(order => {
+                const side = order.positionSide === 'LONG' ? 'long' : 'short';
+                const time = new Date(order.time).toLocaleString('ko-KR');
+
+                html += `
+                    <div class="trade-item ${side}">
+                        <div class="trade-header">
+                            <span class="symbol">${order.symbol}</span>
+                            <span class="side ${side}">${order.positionSide}</span>
+                        </div>
+                        <div class="trade-info">
+                            📅 ${time}<br>
+                            💰 가격: ${order.price} USDT<br>
+                            📦 수량: ${order.executedQty}<br>
+                            📊 상태: ${order.status}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `<pre style="margin-top:20px;">${JSON.stringify(orders, null, 2)}</pre>`;
+
+            resultEl.innerHTML = html;
+            resultEl.classList.add('show');
+        }
+    </script>
+</body>
+</html>

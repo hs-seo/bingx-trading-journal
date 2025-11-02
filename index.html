@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BingX 거래일지 & Pine Script 생성기</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* 색상 변수 */
+        :root {
+            --color-background: #FFFFFF;
+            --color-surface: #F9FAFB;
+            --color-border: #E5E7EB;
+            --color-text-primary: #1F2937;
+            --color-text-secondary: #6B7280;
+            --color-text-tertiary: #9CA3AF;
+            --color-primary: #A7B8F5;
+            --color-accent: #FFB5BA;
+            --color-success: #B5E7D3;
+            --color-error: #FFCCCB;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+            background: var(--color-surface);
+            min-height: 100vh;
+            padding: 0;
+            color: var(--color-text-primary);
+            font-size: 14px;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--color-background);
+            min-height: 100vh;
+        }
+
+        /* 헤더 영역 */
+        .header {
+            padding: 40px 48px 24px;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        h1 {
+            color: var(--color-text-primary);
+            margin-bottom: 4px;
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        .subtitle {
+            color: var(--color-text-secondary);
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        /* 메인 컨텐츠 */
+        .main-content {
+            padding: 24px 48px 48px;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 32px 24px 24px;
+            }
+            .main-content {
+                padding: 24px 24px 48px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            .btn-group {
+                flex-direction: column;
+            }
+            .btn-group .btn {
+                width: 100%;
+            }
+            .tabs-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .tabs {
+                width: 100%;
+            }
+            .tab {
+                flex: 1;
+                padding: 10px 12px;
+                font-size: 13px;
+            }
+            .tab-action-btn {
+                width: 100%;
+            }
+            .stats-section {
+                padding: 24px;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+        }
+
+        /* API 키 입력 섹션 */
+        .api-section {
+            background: var(--color-surface);
+            border-radius: 6px;
+            margin-bottom: 32px;
+            border: 1px solid var(--color-border);
+            overflow: hidden;
+        }
+
+        .api-toggle {
+            width: 100%;
+            background: none;
+            border: none;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .api-toggle:hover {
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        .api-toggle-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            letter-spacing: -0.01em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .api-toggle-icon {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            transition: transform 0.2s ease;
+        }
+
+        .api-section.collapsed .api-toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .api-content {
+            padding: 0 24px 24px;
+            max-height: 2000px;
+            overflow-y: auto;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        .api-section.collapsed .api-content {
+            max-height: 0;
+            padding: 0 24px;
+            overflow: hidden;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--color-text-primary);
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            font-size: 15px;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            background: white;
+            color: var(--color-text-primary);
+        }
+
+        input:hover, select:hover {
+            border-color: var(--color-text-tertiary);
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 2px rgba(167, 184, 245, 0.12);
+        }
+
+        /* 버튼 스타일 */
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+        }
+
+        .action-section {
+            margin-bottom: 40px;
+        }
+
+        .section-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+
+        .btn {
+            padding: 10px 18px;
+            background: var(--color-text-primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s ease, background 0.2s ease;
+            letter-spacing: -0.01em;
+            white-space: nowrap;
+        }
+
+        .btn:hover {
+            opacity: 0.85;
+        }
+
+        .btn:active {
+            opacity: 0.7;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-success {
+            background: var(--color-success);
+            color: var(--color-text-primary);
+        }
+
+        .btn-success:hover {
+            opacity: 0.85;
+        }
+
+        .btn-danger {
+            background: var(--color-error);
+            color: var(--color-text-primary);
+        }
+
+        .btn-danger:hover {
+            opacity: 0.85;
+        }
+
+        .btn-secondary {
+            background: var(--color-text-secondary);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            opacity: 0.85;
+        }
+
+        /* 체크박스 */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--color-primary);
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--color-text-secondary);
+        }
+
+        /* 상태 메시지 */
+        .status {
+            padding: 14px 18px;
+            margin-bottom: 24px;
+            border-radius: 6px;
+            display: none;
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .status.info {
+            background: rgba(167, 184, 245, 0.1);
+            color: var(--color-text-primary);
+            border-color: var(--color-primary);
+        }
+
+        .status.error {
+            background: rgba(255, 181, 186, 0.1);
+            color: var(--color-text-primary);
+            border-color: var(--color-error);
+        }
+
+        .status.success {
+            background: rgba(181, 231, 211, 0.1);
+            color: var(--color-text-primary);
+            border-color: var(--color-success);
+        }
+
+        /* 통계 카드 */
+        .stats-section {
+            background: var(--color-surface);
+            padding: 32px;
+            border-radius: 8px;
+            border: 1px solid var(--color-border);
+            margin-bottom: 40px;
+        }
+
+        .stats-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: 24px;
+            letter-spacing: -0.01em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid var(--color-border);
+            padding: 20px;
+            border-radius: 6px;
+            transition: border-color 0.2s ease;
+        }
+
+        .stat-card:hover {
+            border-color: var(--color-text-tertiary);
+        }
+
+        .stat-card.green {
+            background: rgba(181, 231, 211, 0.15);
+            border-color: var(--color-success);
+        }
+
+        .stat-card.red {
+            background: rgba(255, 181, 186, 0.15);
+            border-color: var(--color-error);
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--color-text-primary);
+            letter-spacing: -0.02em;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--color-text-secondary);
+            font-weight: 500;
+        }
+
+        /* 탭 - Segment Control 스타일 */
+        .tabs-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            gap: 16px;
+        }
+
+        .tabs {
+            display: inline-flex;
+            gap: 4px;
+            background: var(--color-surface);
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid var(--color-border);
+        }
+        .tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: var(--color-text-secondary);
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            transition: color 0.2s ease, background 0.2s ease;
+            border-radius: 6px;
+            letter-spacing: -0.01em;
+            white-space: nowrap;
+        }
+        .tab.active {
+            color: var(--color-text-primary);
+            background: white;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+        .tab:hover:not(.active) {
+            color: var(--color-text-primary);
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .tab-action-btn {
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.15s ease;
+        }
+
+        .tab-action-btn.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* 탭 컨텐츠 */
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        /* 거래 내역 */
+        .trades-container {
+            max-height: 500px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--color-border) var(--color-surface);
+        }
+
+        .trades-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .trades-container::-webkit-scrollbar-track {
+            background: var(--color-surface);
+            border-radius: 4px;
+        }
+
+        .trades-container::-webkit-scrollbar-thumb {
+            background: var(--color-border);
+            border-radius: 4px;
+        }
+
+        .trades-container::-webkit-scrollbar-thumb:hover {
+            background: var(--color-text-tertiary);
+        }
+
+        /* 날짜별 섹션 */
+        .date-section {
+            margin-bottom: 32px;
+        }
+        .date-header {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            padding: 14px 18px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .date-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            letter-spacing: -0.01em;
+        }
+        .date-summary {
+            font-size: 13px;
+            color: var(--color-text-secondary);
+        }
+
+        .trade-item {
+            background: white;
+            padding: 16px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--color-border);
+            border-left-width: 3px;
+            transition: border-color 0.2s ease;
+        }
+        .trade-item:hover {
+            border-color: var(--color-text-tertiary);
+        }
+        .trade-item.long {
+            border-left-color: var(--color-success);
+        }
+        .trade-item.short {
+            border-left-color: var(--color-error);
+        }
+        .trade-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .symbol {
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--color-text-primary);
+            letter-spacing: -0.01em;
+        }
+        .side {
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .side.long {
+            background: rgba(181, 231, 211, 0.3);
+            color: var(--color-text-primary);
+        }
+        .side.short {
+            background: rgba(255, 181, 186, 0.3);
+            color: var(--color-text-primary);
+        }
+        .trade-info {
+            color: var(--color-text-secondary);
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        /* Pine Script */
+        .pinescript-container {
+            background: var(--color-text-primary);
+            color: var(--color-surface);
+            padding: 24px;
+            border-radius: 6px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            border: 1px solid var(--color-border);
+            scrollbar-width: thin;
+            scrollbar-color: var(--color-text-secondary) var(--color-text-primary);
+        }
+
+        .pinescript-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .pinescript-container::-webkit-scrollbar-track {
+            background: var(--color-text-primary);
+            border-radius: 4px;
+        }
+
+        .pinescript-container::-webkit-scrollbar-thumb {
+            background: var(--color-text-secondary);
+            border-radius: 4px;
+        }
+
+        .pinescript-container::-webkit-scrollbar-thumb:hover {
+            background: var(--color-text-tertiary);
+        }
+        .copy-btn {
+            margin-top: 12px;
+        }
+
+        /* 로딩 */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 32px;
+        }
+        .loading.show {
+            display: block;
+        }
+        .loading p {
+            color: var(--color-text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .spinner {
+            border: 3px solid var(--color-border);
+            border-top: 3px solid var(--color-primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 체크박스 */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            cursor: pointer;
+        }
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        /* 편집 버튼 */
+        .edit-btn {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 8px;
+            margin-left: 8px;
+            color: var(--color-text-secondary);
+            transition: color 0.2s ease;
+        }
+        .edit-btn:hover {
+            color: var(--color-primary);
+        }
+
+        /* 모달 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(17, 24, 39, 0.4);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(10px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-content {
+            background: white;
+            padding: 32px;
+            border-radius: 8px;
+            max-width: 480px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid var(--color-border);
+            animation: slideUp 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            letter-spacing: -0.01em;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--color-text-tertiary);
+            transition: color 0.2s ease;
+        }
+        .close-btn:hover {
+            color: var(--color-text-primary);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--color-text-primary);
+        }
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            font-size: 15px;
+            font-family: inherit;
+            background: white;
+            color: var(--color-text-primary);
+            transition: all 0.2s ease;
+        }
+        .form-group select:hover,
+        .form-group textarea:hover {
+            border-color: var(--color-text-tertiary);
+        }
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 2px rgba(167, 184, 245, 0.12);
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        /* 환경설정 테이블 스타일 */
+        .settings-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid var(--color-border);
+        }
+        .settings-table thead {
+            background: var(--color-surface);
+        }
+        .settings-table th {
+            padding: 12px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            text-align: left;
+            border-bottom: 1px solid var(--color-border);
+        }
+        .settings-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--color-surface);
+            vertical-align: middle;
+        }
+        .settings-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .settings-table tbody tr:hover {
+            background: var(--color-surface);
+        }
+        .settings-table input[type="text"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .settings-table input[type="text"]:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 2px rgba(167, 184, 245, 0.12);
+        }
+        .settings-table input[type="checkbox"] {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+        .settings-table .delete-btn {
+            padding: 6px 12px;
+            background: var(--color-error);
+            color: var(--color-text-primary);
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .settings-table .delete-btn:hover {
+            opacity: 0.8;
+        }
+
+        .modal-actions button {
+            flex: 1;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 64px 32px;
+            color: var(--color-text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        .empty-state-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: 8px;
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+            color: var(--color-text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>BingX 거래일지</h1>
+            <p class="subtitle">모든 거래 내역을 분석하고 TradingView Pine Script를 자동 생성합니다</p>
+        </div>
+
+        <div class="main-content">
+            <!-- 상태 메시지 -->
+            <div id="status" class="status"></div>
+
+            <!-- 데이터 수집 -->
+            <div class="action-section">
+                <div class="section-label">데이터 수집</div>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="fetchAllTrades(false)">새 거래 가져오기</button>
+                    <button class="btn btn-danger" onclick="fetchAllTrades(true)">전체 다시 가져오기</button>
+                </div>
+            </div>
+
+            <!-- 데이터 관리 -->
+            <div class="action-section">
+                <div class="section-label">데이터 관리</div>
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="exportToCSV()">엑셀 다운로드</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('importCSVFile').click()">엑셀 업로드</button>
+                    <button class="btn btn-secondary" onclick="exportToJSON()">JSON 백업</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">백업 복원</button>
+                    <button class="btn" onclick="clearAllData()">전체 삭제</button>
+                </div>
+            </div>
+
+            <!-- 환경설정 (기본 숨김) -->
+            <div class="api-section collapsed">
+                <button class="api-toggle" onclick="toggleApiSection()">
+                    <div class="api-toggle-title">
+                        <span>환경설정</span>
+                        <span style="font-size: 13px; color: #9CA3AF; font-weight: 400; margin-left: 8px;">API 설정 및 거래 정보 입력 옵션</span>
+                    </div>
+                    <span class="api-toggle-icon">▼</span>
+                </button>
+                <div class="api-content">
+                    <!-- API 설정 -->
+                    <div style="margin-bottom: 32px;">
+                        <h4 style="font-size: 15px; font-weight: 600; margin-bottom: 16px; color: #111827; padding-bottom: 8px; border-bottom: 1px solid #E5E7EB;">API 설정</h4>
+                        <div class="input-group">
+                            <label for="apiKey">API Key</label>
+                            <input type="password" id="apiKey" placeholder="BingX API Key">
+                        </div>
+                        <div class="input-group">
+                            <label for="secretKey">Secret Key</label>
+                            <input type="password" id="secretKey" placeholder="BingX Secret Key">
+                        </div>
+                        <div class="input-group">
+                            <label for="datePeriod">조회 기간</label>
+                            <select id="datePeriod">
+                                <option value="7">최근 7일</option>
+                                <option value="30" selected>최근 30일</option>
+                                <option value="60">최근 60일</option>
+                                <option value="90">최근 90일</option>
+                                <option value="365">최근 1년</option>
+                            </select>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="saveKeys" checked>
+                            <label for="saveKeys">API 키를 브라우저에 안전하게 저장</label>
+                        </div>
+                    </div>
+
+                    <!-- 거래 정보 입력 옵션 -->
+                    <div>
+                        <h4 style="font-size: 15px; font-weight: 600; margin-bottom: 16px; color: #111827; padding-bottom: 8px; border-bottom: 1px solid #E5E7EB;">거래 정보 입력 옵션</h4>
+
+                        <!-- 진입방식 설정 -->
+                        <div style="margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <label style="font-weight: 500; font-size: 14px; color: #374151;">진입방식</label>
+                                <button class="btn btn-small" onclick="addOption('entryMethod')" style="padding: 6px 12px; font-size: 13px;">+ 추가</button>
+                            </div>
+                            <table class="settings-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 60%;">옵션명</th>
+                                        <th style="width: 20%; text-align: center;">기본값</th>
+                                        <th style="width: 20%; text-align: center;">삭제</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="entryMethodOptions">
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- 감정상태 설정 -->
+                        <div style="margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <label style="font-weight: 500; font-size: 14px; color: #374151;">감정상태</label>
+                                <button class="btn btn-small" onclick="addOption('emotion')" style="padding: 6px 12px; font-size: 13px;">+ 추가</button>
+                            </div>
+                            <table class="settings-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 60%;">옵션명</th>
+                                        <th style="width: 20%; text-align: center;">기본값</th>
+                                        <th style="width: 20%; text-align: center;">삭제</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="emotionOptions">
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="btn-group" style="margin-top: 16px;">
+                            <button class="btn btn-success" onclick="saveSettings()">설정 저장</button>
+                            <button class="btn btn-secondary" onclick="resetSettings()">기본값으로 초기화</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 디버깅 (기본 숨김) -->
+            <div class="api-section collapsed">
+                <button class="api-toggle" onclick="toggleDebugSection()">
+                    <div class="api-toggle-title">
+                        <span>디버깅</span>
+                        <span style="font-size: 13px; color: #9CA3AF; font-weight: 400; margin-left: 8px;">API 계정 및 거래 내역 확인</span>
+                    </div>
+                    <span class="api-toggle-icon">▼</span>
+                </button>
+                <div class="api-content">
+                    <div class="btn-group">
+                        <button class="btn" onclick="checkApiAccount()" style="background: #10B981; color: white;">API 계정 확인</button>
+                        <button class="btn" onclick="debugRecentTrades()" style="background: #8B5CF6; color: white;">최근 거래 확인</button>
+                        <button class="btn" onclick="searchOrderById()" style="background: #EC4899; color: white;">주문 번호로 검색</button>
+                    </div>
+                </div>
+            </div>
+            <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importFromJSON(event)">
+            <input type="file" id="importCSVFile" accept=".csv" style="display:none;" onchange="importFromCSV(event)">
+
+        <!-- 로딩 -->
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>거래 내역을 가져오는 중...</p>
+        </div>
+
+        <!-- 통계 -->
+        <div id="statsSection" class="stats-section" style="display:none;">
+            <div class="stats-title">거래 통계</div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalTrades">0</div>
+                    <div class="stat-label">총 거래 수</div>
+                </div>
+                <div class="stat-card" id="winRateCard">
+                    <div class="stat-value" id="winRate">0%</div>
+                    <div class="stat-label">승률</div>
+                </div>
+                <div class="stat-card" id="pnlCard">
+                    <div class="stat-value" id="totalPnL">$0</div>
+                    <div class="stat-label">총 손익 (USDT)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalSymbols">0</div>
+                    <div class="stat-label">거래 심볼 수</div>
+                </div>
+                <div class="stat-card" id="maxWinCard">
+                    <div class="stat-value" id="maxWin">+0</div>
+                    <div class="stat-label">최대 승리 (USDT)</div>
+                </div>
+                <div class="stat-card red">
+                    <div class="stat-value" id="maxLoss">0</div>
+                    <div class="stat-label">최대 손실 (USDT)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="ruleComplianceRate">N/A</div>
+                    <div class="stat-label">규칙준수율</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgHoldingTime">N/A</div>
+                    <div class="stat-label">평균 보유시간</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 탭 -->
+        <div class="tabs-container">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('activity', this)">Recent Activity</button>
+                <button class="tab" onclick="switchTab('trades', this)">전체 거래</button>
+                <button class="tab" onclick="switchTab('pinescript', this)">Pine Script</button>
+            </div>
+            <button id="copyPineScriptBtn" class="btn btn-success tab-action-btn" onclick="copyPineScript()">Pine Script 복사</button>
+        </div>
+
+        <!-- Recent Activity 탭 -->
+        <div id="activityTab" class="tab-content active">
+            <div id="activityContainer" class="trades-container"></div>
+        </div>
+
+        <!-- 거래 내역 탭 -->
+        <div id="tradesTab" class="tab-content">
+            <div id="tradesContainer" class="trades-container"></div>
+        </div>
+
+        <!-- Pine Script 탭 -->
+        <div id="pinescriptTab" class="tab-content">
+            <div id="pinescriptContainer" class="pinescript-container">
+                Pine Script를 생성하려면 "Pine Script" 탭을 클릭하세요.
+            </div>
+        </div>
+        </div> <!-- main-content -->
+    </div> <!-- container -->
+
+    <!-- 거래 편집 모달 -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>거래 정보 입력</h3>
+                <button class="close-btn" data-action="closeModal">×</button>
+            </div>
+
+            <input type="hidden" id="editOrderId">
+
+            <div class="form-group">
+                <label for="editEntryMethod">진입방식</label>
+                <select id="editEntryMethod">
+                    <option value="">선택하세요</option>
+                    <option value="브레이크아웃">브레이크아웃</option>
+                    <option value="되돌림">되돌림</option>
+                    <option value="패턴">패턴</option>
+                    <option value="지표">지표</option>
+                    <option value="기타">기타</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="editEmotion">감정상태</label>
+                <select id="editEmotion">
+                    <option value="">선택하세요</option>
+                    <option value="차분함">차분함</option>
+                    <option value="자신감">자신감</option>
+                    <option value="조급함">조급함</option>
+                    <option value="두려움">두려움</option>
+                    <option value="흥분">흥분</option>
+                    <option value="불안">불안</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="editRuleCompliance">규칙준수</label>
+                <select id="editRuleCompliance">
+                    <option value="">선택하세요</option>
+                    <option value="true">준수</option>
+                    <option value="false">미준수</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="editMemo">메모 / 특이사항</label>
+                <textarea id="editMemo" placeholder="거래에 대한 메모를 입력하세요..."></textarea>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn" data-action="closeModal">취소</button>
+                <button class="btn btn-success" data-action="saveModal">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
