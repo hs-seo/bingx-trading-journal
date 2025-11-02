@@ -2845,6 +2845,8 @@ async function loadCurrentPositions() {
 
         // 2. Standard Futures 포지션 조회 시도
         console.log('🔍 Standard Futures 조회 시작...');
+        const addedPositionIds = new Set(); // 중복 방지를 위한 Set
+
         try {
             const standardSymbols = ['BTC-USDT', 'ETH-USDT', 'SOL-USDT', 'BNB-USDT', 'XRP-USDT'];
 
@@ -2857,6 +2859,11 @@ async function loadCurrentPositions() {
                     try {
                         standardPositions = await makeApiRequest('/openApi/contract/v1/allPosition', { symbol });
                         console.log(`  📊 ${symbol} allPosition 응답:`, standardPositions);
+
+                        // 응답 구조 상세 분석
+                        if (Array.isArray(standardPositions) && standardPositions.length > 0) {
+                            console.log(`    첫 번째 포지션 상세:`, JSON.stringify(standardPositions[0], null, 2));
+                        }
                     } catch (err1) {
                         console.log(`  ⚠️ ${symbol} allPosition 실패:`, err1.message);
 
@@ -2871,12 +2878,29 @@ async function loadCurrentPositions() {
 
                     if (Array.isArray(standardPositions) && standardPositions.length > 0) {
                         standardPositions.forEach(pos => {
+                            // 포지션 ID 또는 고유 키 생성
+                            const posId = pos.positionId || pos.orderId || `${pos.symbol}_${pos.side}_${pos.positionAmt}`;
+
+                            // 중복 확인
+                            if (addedPositionIds.has(posId)) {
+                                console.log(`  ⏭️ 중복 포지션 스킵: ${posId}`);
+                                return;
+                            }
+
+                            // 심볼 일치 확인 (API가 모든 심볼을 반환할 수 있음)
+                            const posSymbol = pos.symbol || symbol;
+                            if (posSymbol !== symbol) {
+                                console.log(`  ⏭️ 심볼 불일치 스킵: ${posSymbol} !== ${symbol}`);
+                                return;
+                            }
+
                             // 포지션이 열려있는지 확인 (수량이 0이 아닌 경우)
                             const positionAmt = parseFloat(pos.positionAmt || pos.volume || pos.position || 0);
                             if (positionAmt !== 0) {
                                 pos._marketType = 'Standard';
                                 pos.symbol = symbol; // 심볼 명시적으로 추가
                                 allPositions.push(pos);
+                                addedPositionIds.add(posId);
                                 console.log(`  ✅ Standard 포지션 추가:`, symbol, pos.side || pos.positionSide, positionAmt);
                             }
                         });
@@ -2884,10 +2908,13 @@ async function loadCurrentPositions() {
                         // 단일 객체로 응답이 올 경우
                         console.log(`  📊 ${symbol} 단일 객체 응답:`, standardPositions);
                         const positionAmt = parseFloat(standardPositions.positionAmt || standardPositions.volume || standardPositions.position || 0);
-                        if (positionAmt !== 0) {
+                        const posId = standardPositions.positionId || standardPositions.orderId || `${symbol}_${standardPositions.side}_${positionAmt}`;
+
+                        if (!addedPositionIds.has(posId) && positionAmt !== 0) {
                             standardPositions._marketType = 'Standard';
                             standardPositions.symbol = symbol;
                             allPositions.push(standardPositions);
+                            addedPositionIds.add(posId);
                             console.log(`  ✅ Standard 포지션 추가 (단일):`, symbol, standardPositions.side || standardPositions.positionSide, positionAmt);
                         }
                     }
@@ -3040,9 +3067,11 @@ function loadSelectedPositions() {
         });
 
         if (!allSameSide) {
+            console.log('  ❌ 방향 검증 실패: 서로 다른 방향 감지');
             showStatus('⚠️ 서로 다른 방향(LONG/SHORT)의 포지션은 합산할 수 없습니다', 'error');
             return;
         }
+        console.log('  ✅ 방향 검증 통과: 모두 동일한 방향');
 
         // 기존 진입 내역 초기화
         const tbody = document.getElementById('rrEntriesBody');
