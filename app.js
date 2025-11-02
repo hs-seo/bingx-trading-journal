@@ -2589,6 +2589,9 @@ class RRCalculator {
 // 전역 RR Calculator 인스턴스
 let rrCalc = new RRCalculator();
 
+// 전역 포지션 데이터 저장소 (HTML data 속성 이스케이프 문제 방지)
+let currentPositions = [];
+
 // 진입 행 추가
 function addEntryRow() {
     const tbody = document.getElementById('rrEntriesBody');
@@ -2899,6 +2902,9 @@ async function loadCurrentPositions() {
         // 포지션 표시
         console.log(`📋 총 ${allPositions.length}개 포지션 발견`);
 
+        // 전역 배열에 저장 (HTML 이스케이프 문제 방지)
+        currentPositions = allPositions;
+
         const checkboxesContainer = document.getElementById('rrPositionCheckboxes');
         checkboxesContainer.innerHTML = '';
 
@@ -2913,18 +2919,17 @@ async function loadCurrentPositions() {
                 const side = pos.positionSide || pos.side || 'UNKNOWN';
                 const displayText = `${marketTag} ${pos.symbol} ${side} | ${Math.abs(posAmt).toFixed(4)} @ ${avgPrice.toFixed(2)} | ${profitSign}${unrealizedProfit.toFixed(2)}$`;
 
-                // 드롭다운 옵션 추가
+                // 드롭다운 옵션 추가 (인덱스만 저장)
                 const option = document.createElement('option');
                 option.value = index;
                 option.textContent = displayText;
-                option.dataset.position = JSON.stringify(pos);
                 select.appendChild(option);
 
-                // 체크박스 항목 추가
+                // 체크박스 항목 추가 (인덱스만 저장)
                 const checkboxItem = document.createElement('div');
                 checkboxItem.className = 'rr-position-checkbox-item';
                 checkboxItem.innerHTML = `
-                    <input type="checkbox" id="rrPos${index}" value="${index}" data-position='${JSON.stringify(pos)}'>
+                    <input type="checkbox" id="rrPos${index}" value="${index}">
                     <label for="rrPos${index}">${displayText}</label>
                 `;
                 checkboxesContainer.appendChild(checkboxItem);
@@ -2947,11 +2952,12 @@ async function loadCurrentPositions() {
 // 포지션을 계산기에 로드 (단일)
 function loadPositionToCalculator() {
     const select = document.getElementById('rrPositionSelect');
-    const selectedOption = select.options[select.selectedIndex];
+    const selectedIndex = parseInt(select.value);
 
-    if (!selectedOption.dataset.position) return;
+    if (isNaN(selectedIndex) || selectedIndex < 0) return;
 
-    const position = JSON.parse(selectedOption.dataset.position);
+    const position = currentPositions[selectedIndex];
+    if (!position) return;
 
     // 기존 진입 내역 초기화
     const tbody = document.getElementById('rrEntriesBody');
@@ -2991,59 +2997,96 @@ function loadPositionToCalculator() {
 
 // 선택한 여러 포지션을 합산하여 로드
 function loadSelectedPositions() {
-    // 체크된 포지션 수집
-    const checkboxes = document.querySelectorAll('#rrPositionCheckboxes input[type="checkbox"]:checked');
+    try {
+        console.log('🔍 loadSelectedPositions 시작...');
 
-    if (checkboxes.length === 0) {
-        showStatus('⚠️ 최소 1개 이상의 포지션을 선택하세요', 'error');
-        return;
+        // 체크된 포지션 수집
+        const checkboxes = document.querySelectorAll('#rrPositionCheckboxes input[type="checkbox"]:checked');
+        console.log(`  체크된 포지션 수: ${checkboxes.length}`);
+
+        if (checkboxes.length === 0) {
+            showStatus('⚠️ 최소 1개 이상의 포지션을 선택하세요', 'error');
+            return;
+        }
+
+        const positions = [];
+        checkboxes.forEach((checkbox, idx) => {
+            const posIndex = parseInt(checkbox.value);
+            console.log(`  체크박스 ${idx}: 인덱스=${posIndex}`);
+
+            if (!isNaN(posIndex) && currentPositions[posIndex]) {
+                positions.push(currentPositions[posIndex]);
+                console.log(`    ✅ 포지션 로드 성공:`, currentPositions[posIndex]);
+            } else {
+                console.error(`    ❌ 포지션을 찾을 수 없음: 인덱스=${posIndex}`);
+            }
+        });
+
+        console.log(`  총 ${positions.length}개 포지션 수집 완료`);
+
+        if (positions.length === 0) {
+            showStatus('⚠️ 포지션 데이터를 불러올 수 없습니다', 'error');
+            return;
+        }
+
+        // 방향 검증 (모두 같은 방향이어야 함)
+        const firstSide = positions[0].positionSide || positions[0].side || 'LONG';
+        console.log(`  첫 번째 포지션 방향: ${firstSide}`);
+
+        const allSameSide = positions.every(pos => {
+            const side = pos.positionSide || pos.side || 'LONG';
+            console.log(`    포지션 방향 확인: ${side}`);
+            return side === firstSide;
+        });
+
+        if (!allSameSide) {
+            showStatus('⚠️ 서로 다른 방향(LONG/SHORT)의 포지션은 합산할 수 없습니다', 'error');
+            return;
+        }
+
+        // 기존 진입 내역 초기화
+        const tbody = document.getElementById('rrEntriesBody');
+        if (!tbody) {
+            console.error('❌ rrEntriesBody 요소를 찾을 수 없습니다');
+            showStatus('❌ UI 요소 오류', 'error');
+            return;
+        }
+        tbody.innerHTML = '';
+        console.log('  기존 테이블 초기화 완료');
+
+        // 각 포지션을 진입 행으로 추가
+        positions.forEach((position, index) => {
+            const avgPrice = parseFloat(position.avgPrice || position.avgOpenPrice || 0);
+            const posAmt = Math.abs(parseFloat(position.positionAmt || position.volume || 0));
+
+            console.log(`  행 ${index} 추가: 가격=${avgPrice}, 수량=${posAmt}`);
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><input type="number" class="rr-entry-price" value="${avgPrice.toFixed(2)}" step="0.01" oninput="updateRRCalculation()"></td>
+                <td><input type="number" class="rr-entry-qty" value="${posAmt.toFixed(4)}" step="0.0001" oninput="updateRRCalculation()"></td>
+                <td class="rr-entry-value">-</td>
+                <td><button class="delete-btn" onclick="removeEntryRow(this)">삭제</button></td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        console.log(`  ${positions.length}개 행 추가 완료`);
+
+        // 거래 방향 설정
+        const sideRadios = document.getElementsByName('rrSide');
+        for (const radio of sideRadios) {
+            radio.checked = (radio.value === firstSide);
+        }
+        console.log(`  거래 방향 설정: ${firstSide}`);
+
+        // 계산 업데이트
+        updateRRCalculation();
+        console.log('  계산 업데이트 완료');
+
+        showStatus(`✅ ${positions.length}개 포지션 합산 완료`, 'success');
+    } catch (error) {
+        console.error('❌ loadSelectedPositions 오류:', error);
+        showStatus(`❌ 포지션 로드 실패: ${error.message}`, 'error');
     }
-
-    const positions = [];
-    checkboxes.forEach(checkbox => {
-        const posData = JSON.parse(checkbox.dataset.position);
-        positions.push(posData);
-    });
-
-    // 방향 검증 (모두 같은 방향이어야 함)
-    const firstSide = positions[0].positionSide || positions[0].side || 'LONG';
-    const allSameSide = positions.every(pos => {
-        const side = pos.positionSide || pos.side || 'LONG';
-        return side === firstSide;
-    });
-
-    if (!allSameSide) {
-        showStatus('⚠️ 서로 다른 방향(LONG/SHORT)의 포지션은 합산할 수 없습니다', 'error');
-        return;
-    }
-
-    // 기존 진입 내역 초기화
-    const tbody = document.getElementById('rrEntriesBody');
-    tbody.innerHTML = '';
-
-    // 각 포지션을 진입 행으로 추가
-    positions.forEach((position, index) => {
-        const avgPrice = parseFloat(position.avgPrice || position.avgOpenPrice || 0);
-        const posAmt = Math.abs(parseFloat(position.positionAmt || position.volume || 0));
-
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td><input type="number" class="rr-entry-price" value="${avgPrice.toFixed(2)}" step="0.01" oninput="updateRRCalculation()"></td>
-            <td><input type="number" class="rr-entry-qty" value="${posAmt.toFixed(4)}" step="0.0001" oninput="updateRRCalculation()"></td>
-            <td class="rr-entry-value">-</td>
-            <td><button class="delete-btn" onclick="removeEntryRow(this)">삭제</button></td>
-        `;
-        tbody.appendChild(row);
-    });
-
-    // 거래 방향 설정
-    const sideRadios = document.getElementsByName('rrSide');
-    for (const radio of sideRadios) {
-        radio.checked = (radio.value === firstSide);
-    }
-
-    // 계산 업데이트
-    updateRRCalculation();
-
-    showStatus(`✅ ${positions.length}개 포지션 합산 완료`, 'success');
 }
