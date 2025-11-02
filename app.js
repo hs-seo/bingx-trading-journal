@@ -948,12 +948,15 @@ function displayRecentActivity(positions) {
     const positionsByDate = {};
     positions.forEach(position => {
         const date = new Date(position.entryTime);
-        const dateKey = date.toLocaleDateString('ko-KR', {
+        const datePart = date.toLocaleDateString('ko-KR', {
             year: 'numeric',
             month: 'long',
-            day: 'numeric',
+            day: 'numeric'
+        });
+        const weekday = date.toLocaleDateString('ko-KR', {
             weekday: 'short'
         });
+        const dateKey = `${datePart}(${weekday})`;
 
         if (!positionsByDate[dateKey]) {
             positionsByDate[dateKey] = [];
@@ -973,6 +976,7 @@ function displayRecentActivity(positions) {
         const losses = closedPositions.filter(p => p.totalProfit < 0).length;
         const totalPnL = closedPositions.reduce((sum, p) => sum + (parseFloat(p.totalProfit) || 0), 0);
         const pnlSign = totalPnL >= 0 ? '+' : '';
+        const pnlColor = totalPnL >= 0 ? '#10B981' : '#EF4444'; // 녹색 또는 빨간색
 
         // 규칙준수율
         const positionsWithRuleData = dayPositions.filter(p => p.ruleCompliance !== null && p.ruleCompliance !== undefined);
@@ -987,7 +991,7 @@ function displayRecentActivity(positions) {
                     <div class="date-title">${dateKey}</div>
                     <div class="date-summary">
                         포지션: ${dayPositions.length} | 승/패: ${wins}/${losses} |
-                        손익: <span style="color:white; font-weight:700;">${pnlSign}${parseFloat(totalPnL.toFixed(2))} USDT</span> |
+                        손익: <span style="color:${pnlColor}; font-weight:700;">${pnlSign}${parseFloat(totalPnL.toFixed(2))} USDT</span> |
                         규칙준수: ${ruleComplianceRate}
                     </div>
                 </div>
