@@ -2014,6 +2014,11 @@ function toggleApiSection() {
     sections[0].classList.toggle('collapsed'); // 환경설정 섹션
 }
 
+function toggleStats() {
+    const statsSection = document.getElementById('statsSection');
+    statsSection.classList.toggle('collapsed');
+}
+
 function toggleDebugSection() {
     const sections = document.querySelectorAll('.api-section');
     sections[1].classList.toggle('collapsed'); // 디버깅 섹션
